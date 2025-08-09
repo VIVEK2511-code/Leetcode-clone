@@ -1,0 +1,189 @@
+// generator client {
+//   provider = "prisma-client-js"
+//   output   = "../src/generated/prisma"
+// }
+
+// datasource db {
+//   provider = "postgresql"
+//   url      = env("DATABASE_URL")
+// }
+
+// enum UserRole {
+//   ADMIN
+//   USER
+// }
+
+// model User {
+//   id        String    @id @default(cuid())
+//   email     String    @unique
+//   name      String?
+//   password  String
+//   role      UserRole  @default(USER)
+//   createdAt DateTime  @default(now())
+//   updatedAt DateTime  @updatedAt
+// }
+
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  ADMIN
+  USER
+}
+
+enum Difficulty {
+  EASY
+  MEDIUM
+  HARD
+}
+
+model User {
+  id        String   @id @default(uuid())
+  name      String?
+  email     String   @unique
+  image     String?
+  role      UserRole @default(USER)
+  password  String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  problems Problem[]
+
+  submission submission[]
+
+  problemSolved problemSolved[]
+  Playlist      Playlist[]
+}
+
+model Problem {
+  id          String     @id @default(uuid())
+  title       String
+  description String
+  difficulty  Difficulty
+  tags        String[] // ["array","microsoft", "Math"]
+  userId      String
+  examples    Json
+  constraints String
+  hints       String?
+  editorial   String?
+
+  testCases          Json
+  codeSnippets       Json
+  referenceSolutions Json
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // relationships
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  submission submission[]
+
+  problemSolvedBy problemSolved[]
+  Playlist        Playlist?       @relation(fields: [playlistId], references: [id])
+  playlistId      String?
+
+  ProblemsInPlaylist ProblemsInPlaylist[]
+}
+
+model submission {
+  id             String  @id @default(uuid())
+  userId         String
+  problemId      String
+  sourceCode     Json
+  language       String
+  stdin          String?
+  stdout         String?
+  stderr         String?
+  compiledOutput String?
+  status         String // accepted, wrong answer, runtime error, etc.
+  timeTaken      Int // in milliseconds 
+  memoryUsed     Int // in bytes
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  problem Problem @relation(fields: [problemId], references: [id], onDelete: Cascade)
+
+  testCases TestCaseResult[]
+}
+
+model TestCaseResult {
+  id             String  @id @default(uuid())
+  submissionId   String
+  testCaseIndex  Int
+  input          String
+  expectedOutput String
+  actualOutput   String?
+  status         String // passed, failed, error
+  timeTaken      Int // in milliseconds
+  memoryUsed     Int // in bytes
+  type           String // "public", "hidden",
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  submission submission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+
+  @@index(submissionId) // Index for faster lookups
+}
+
+model problemSolved {
+  id        String   @id @default(uuid())
+  userId    String
+  problemId String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  problem Problem @relation(fields: [problemId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, problemId]) // Ensure a user can only solve a problem once
+  @@index([userId, problemId]) // Index for faster lookups
+}
+
+model Playlist {
+  id          String               @id @default(uuid())
+  name        String
+  description String?
+  userId      String
+  problems    ProblemsInPlaylist[]
+  createdAt   DateTime             @default(now())
+  updatedAt   DateTime             @updatedAt
+  user        User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  Problem Problem[]
+
+  @@unique([userId, name]) // Ensure a user can only have one playlist with a specific name
+  @@index([userId]) // Index for faster lookups
+  @@index([name]) // Index for faster lookups by name
+}
+
+model ProblemsInPlaylist {
+  id         String   @id @default(uuid())
+  playlistId String
+  problemId  String
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  playlist Playlist @relation(fields: [playlistId], references: [id], onDelete: Cascade)
+  problem  Problem  @relation(fields: [problemId], references: [id], onDelete: Cascade)
+
+  @@unique([playlistId, problemId]) // Ensure a problem can only be in a playlist once
+  @@index([playlistId, problemId]) // Index for faster lookups
+}
